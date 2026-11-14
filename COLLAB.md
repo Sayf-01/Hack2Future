@@ -314,6 +314,62 @@ unreachable.
 smaller than that is noise. Do not chase it, and do not let threshold tuning
 move on a difference that small — B already caught and reverted exactly that.
 
+**Correction to the above (13:00, A):** the leakage table in this section
+compared B's number against A's 7-mer union-find clustering, which chains
+transitively and produced one bogus 279-sequence cluster — too pessimistic.
+B's 3-mer Jaccard >= 0.6 grouping is the better method. **B's 0.739 is already
+leakage-corrected.** Trust it. The honest answer if a judge asks about
+generalisation is 0.739, not some lower number.
+
+---
+
+## ANTICANCER: FOUR THINGS TRIED, NONE BEAT THE CURRENT MODEL (13:00, A)
+
+A reproduced B's anticancer CV exactly (0.7386, matching cv_results.csv to
+4 decimals) and then attacked it four ways. **All four failed. The current
+model stays.** Logged here so nobody spends the afternoon re-running them.
+
+**1. Threshold tuning — 0.5 is correct, keep it.**
+Full accuracy/TP curve from out-of-fold predictions:
+
+| thr | acc | TP | sens | spec |
+|---|---|---|---|---|
+| 0.46 | 0.717 | 347 | 0.720 | 0.714 |
+| 0.48 | 0.732 | 333 | 0.691 | 0.774 |
+| **0.50** | **0.739** | **319** | 0.662 | 0.815 |
+| 0.55 | 0.740 | 287 | 0.595 | 0.884 |
+
+Balancing sensitivity/specificity costs 2.2 points of accuracy to gain 28 true
+positives. Accuracy is rank 1; total TP is rank 2 and only breaks *ties* on
+rank 1. Spending the primary metric to win a tiebreaker we likely never reach
+is backwards. B's `best_threshold` guard already reaches this conclusion by a
+different route — it holds up.
+
+**2. Ensembling — makes it worse.** All 11 combinations of rf/xgb/lgbm/logreg
+scored below rf alone (best ensemble rf+xgb 0.724 vs rf 0.739). RF is far
+stronger than the others, so averaging drags it down. Don't build an ensemble.
+
+**3. RF hyperparameters — current settings are already the best of 10.**
+`min_samples_leaf=1, max_features='sqrt'` won. leaf=2 → 0.722, leaf=3 → 0.709.
+ExtraTrees (both leaf settings) also lost. Nothing to gain here.
+
+**4. Different feature set — A's hand-built physicochemical features
+(charge density, hydrophobic moment, aromaticity, AAC; no dipeptides) scored
+0.743 on a random split / 0.696 cluster-split, i.e. the same ballpark.** Two
+unrelated feature sets converging on ~0.74 is strong evidence that is close to
+the real ceiling for this dataset in the time available, not a modelling
+failure. AUC 0.811 vs accuracy 0.739 says the model ranks peptides well and
+the problem is simply hard near the decision boundary.
+
+**Conclusion: the anticancer model is at its practical ceiling. Stop
+optimising it.** The remaining risk is operational, not statistical — a
+malformed CSV or a missed 4:00 PM deadline costs far more than the ~1 point
+still theoretically available in the model.
+
+The only untried lever is new *features* (not new models). If there is spare
+time after a practice CSV is safely submitted, that is where to spend it —
+but treat anything under ±0.03 as noise.
+
 ### Checklist
 
 - [x] Drive folder downloaded, layout matches above - **committed** (B, 12:30)
