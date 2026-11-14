@@ -196,15 +196,15 @@ Rough split for a team of 2. Adjust freely — just update this file.
 
 ### Checklist
 
-- [x] Drive folder downloaded, layout matches above - **committed** (B, 13:05)
+- [x] Drive folder downloaded, layout matches above - **committed** (B, 12:30)
 - [ ] `python test_environment.py` runs clean - script reviewed by B, run it yourself to tick this
-- [x] Training data committed to `participant_datasets/initial/` (B, 13:05)
-- [x] features timed on 650 rows: **2.9 s for both models** (B, 13:05)
-- [x] Anticancer model trained + saved - `models/anticancer/` (B, 13:05)
-- [x] Hemolytic model trained + saved - `models/hemolytic/` (B, 13:05)
-- [x] Both thresholds examined, both left at 0.5 - reasoning in Decisions (B, 13:05)
-- [x] `predict.py` tested end to end on a 650-row mock final set (B, 13:05)
-- [x] Output diffed against `submission_template.csv` - header matches exactly (B, 13:05)
+- [x] Training data committed to `participant_datasets/initial/` (B, 12:30)
+- [x] features timed on 650 rows: **2.9 s for both models** (B, 12:30)
+- [x] Anticancer model trained + saved - `models/anticancer/` (B, 12:30)
+- [x] Hemolytic model trained + saved - `models/hemolytic/` (B, 12:30)
+- [x] Both thresholds examined, both left at 0.5 - reasoning in Decisions (B, 12:30)
+- [x] `predict.py` tested end to end on a 650-row mock final set (B, 12:30)
+- [x] Output diffed against `submission_template.csv` - header matches exactly (B, 12:30)
 - [ ] Practice CSV submitted to the form
 - [ ] Final CSV submitted before 4:00 PM
 
@@ -227,7 +227,7 @@ Append decisions here so neither side redoes the argument.
   validation accuracy; a big gap means memorizing.
 - **Saving:** `joblib.dump` the whole pipeline (scaler + selector + model)
   together so `predict.py` can't drift from `train.py`.
-- **(B, 13:05) Cross-validation is grouped by sequence similarity.** Both
+- **(B, 12:30) Cross-validation is grouped by sequence similarity.** Both
   training sets contain clusters of near-identical peptides - the biggest is
   **42 sequences** in anticancer, 16 in hemolytic. Plain k-fold puts a peptide
   in one fold and its near-twin in another, so the model recognises rather than
@@ -236,24 +236,24 @@ Append decisions here so neither side redoes the argument.
   cluster inside one fold. The scores below come from that, so they are honest
   but lower than a naive split prints. **If your split is not grouped, your
   numbers are not comparable to these.**
-- **(B, 13:05) Both thresholds stay at 0.5.** Both training sets are exactly
+- **(B, 12:30) Both thresholds stay at 0.5.** Both training sets are exactly
   50/50, so 0.5 is the natural cut. Tuning on out-of-fold predictions moved
   anticancer to 0.555 for +0.2% accuracy while dropping sensitivity from 0.66
   to 0.59 - noise (fold-to-fold spread is +/-0.08) bought by half-ignoring a
   class, which costs true positives, the rank-2 criterion. `best_threshold`
   now only leaves 0.5 when tuning gains more than 1%.
-- **(B, 13:05) No pretrained embeddings in the submission.** Tested ESM-2:
+- **(B, 12:30) No pretrained embeddings in the submission.** Tested ESM-2:
   anticancer accuracy **0.722 with it vs 0.739 with hand-made features**. It
   loses on merit, so the rules question around pretrained models is moot. The
   hand-made features are also the ones we can explain to a judge.
-- **(B, 13:05) Dipeptide composition is the biggest single gain** on
+- **(B, 12:30) Dipeptide composition is the biggest single gain** on
   anticancer, exactly as the challenge doc predicts: phys 0.702 -> aac+phys
   0.721 -> aac+dpc+phys **0.739**. On hemolytic it added nothing (0.937 either
   way), so that model keeps the smaller, simpler feature set.
 
 ---
 
-## Current scores (B, 13:05 - grouped CV on the real training data)
+## Current scores (B, 12:30 - grouped CV on the real training data)
 
 | Model | Features | Algorithm | **Accuracy** | AUC | MCC | Sens | Spec |
 |---|---|---|---|---|---|---|---|
@@ -297,10 +297,10 @@ Newest at the bottom. Format: `HH:MM — who — what`
   the real submission format, judging criteria, required folder layout and
   rules. Corrected earlier guess: primary metric is plain **accuracy**, not MCC,
   and the submission keys on `sequence`, not `id`.
-- 13:05 - Light (B) - Downloaded the Drive folder and committed it: both
+- 12:30 - Light (B) - Downloaded the Drive folder and committed it: both
   datasets, the code templates and `submission_template.csv`. Layout now
   matches the spec. Both blockers below are cleared.
-- 13:05 - Light (B) - Committed the pipeline under `src/`, trained and saved
+- 12:30 - Light (B) - Committed the pipeline under `src/`, trained and saved
   both models, and ran the full final-round rehearsal on a 650-row mock test
   file. **4.3 s end to end.** Scores and run instructions above.
 
@@ -308,12 +308,12 @@ Newest at the bottom. Format: `HH:MM — who — what`
 
 ## Blockers / questions
 
-- [x] ~~Datasets not in the repo~~ - done (B, 13:05). 964 anticancer rows, 618
+- [x] ~~Datasets not in the repo~~ - done (B, 12:30). 964 anticancer rows, 618
       hemolytic, both exactly 50/50, 60 KB total. 30 sequences appear in both
       datasets, which the challenge doc says to expect.
-- [x] ~~`submission_template.csv` not in the repo~~ - committed (B, 13:05) and
+- [x] ~~`submission_template.csv` not in the repo~~ - committed (B, 12:30) and
       its header verified against our output, character for character.
-- [x] ~~Teammate name + branch~~ - filled in above (B, 13:05).
+- [x] ~~Teammate name + branch~~ - filled in above (B, 12:30).
 - [ ] **A (Sayf):** run `python test_environment.py` yourself to tick that box.
       B read the script and it is harmless - it loads the demo CSVs and fits a
       logistic regression - but B's sandbox would not execute a downloaded file.
