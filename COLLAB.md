@@ -577,3 +577,61 @@ simplification made held-out accuracy worse, so the complexity is justified.
 75% → 0.714, 100% → 0.729. Still rising but flattening; doubling data from
 50% to 100% buys ~1.4 points. Confirms (a) train the final model on all 964
 peptides, and (b) the limit is problem difficulty, not model choice.
+
+---
+
+## JUDGE SCRIPT — CORRECTED (14:00, A)
+
+An earlier draft of the pitch said "Random Forest gave our strongest validation
+results" and listed dipeptides as a feature of both models. **Both are wrong**
+and a judge can catch them by opening our own files. Verified against the
+saved artifacts:
+
+| | algorithm | features | threshold | CV acc |
+|---|---|---|---|---|
+| anticancer | **RandomForestClassifier** | aac+dpc+phys | 0.5 | 0.7386 |
+| hemolytic | **LGBMClassifier** | aac+phys (NO dpc) | 0.5 | 0.9369 |
+
+**Use this version:**
+
+> "We built two classifiers — one for anticancer activity, one for hemolytic.
+> We turn each sequence into numbers: amino acid composition, physicochemical
+> properties like charge and hydrophobicity, and for the anticancer model,
+> dipeptide patterns too.
+>
+> We compared four algorithms for each. Random Forest won for anticancer;
+> LightGBM won for hemolytic. During cross-validation we grouped near-identical
+> peptides into the same fold so the model couldn't see a near-copy of a test
+> peptide during training.
+>
+> Average accuracy is 83.8% — about 74% anticancer, 94% hemolytic. We also ran
+> a nested validation where model selection happened entirely inside the
+> training data, and that came back at 82.9%, so selection isn't inflating our
+> number much.
+>
+> The goal is peptides predicted to kill cancer cells without damaging red
+> blood cells."
+
+Lead with 83.8% (CV), keep 82.9% (nested held-out) in your pocket for the
+"how do you know that isn't inflated?" follow-up.
+
+### Expected follow-ups
+
+**"Anticancer is only 74% — why so much worse?"** Hemolysis has a simpler
+mechanism, cleaner signal. The 74% is the dataset ceiling, not underperformance:
+two unrelated feature sets both hit ~74%, ensembling scored worse, hyperparameter
+tuning scored worse, learning curve flattening.
+
+**"Training accuracy is 100% — overfitting?"** Every RF with
+min_samples_leaf=1 scores 1.00 on training data by construction, so the gap
+isn't diagnostic. Real test: constraining the model. leaf=2 → 0.722,
+leaf=3 → 0.709. Simplifying made it worse, so the complexity is justified.
+
+**"Did you tune thresholds?"** Tested and deliberately left at 0.5. Both sets
+are exactly 50/50. Tuning bought 0.2% accuracy while collapsing sensitivity to
+0.59 — the lopsided classifier the brief warns about — and 0.2% is far below
+our fold-to-fold noise.
+
+**"The scaling hint?"** Tested. +7.5 points to an SVM, exactly zero to a random
+forest (identical to six decimals) because trees split on thresholds and
+scaling preserves ordering. Scaled SVM still only reached 0.709 vs our 0.739.
