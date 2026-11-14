@@ -527,3 +527,53 @@ RF choice is real, not a lucky split. Good answer if questioned.
 winners (rf, logreg, xgb, lgbm), all within ~2 points. The signal is strong
 enough that the algorithm barely matters. **Do not spend time tuning the
 hemolytic model** — it is interchangeable.
+
+---
+
+## ORGANIZER HINT TESTED: "scaling your features brings aura" (13:50, A)
+
+**Tested. It is a no-op for our models — correctly so. No change needed.**
+
+Feature ranges before scaling are extreme (smallest max 0.026, largest max
+6188.9 — a 240,000x spread), so the hint looks like it should matter. It
+doesn't, for trees:
+
+| model | unscaled | + StandardScaler | change |
+|---|---|---|---|
+| **rf (ours)** | 0.738589 | 0.738589 | **exactly zero** |
+| svm rbf | 0.634 | 0.709 | +7.5 |
+| logreg | 0.677 | 0.655 | -2.2 |
+
+RF is identical to six decimal places. A tree asks "is feature X above
+threshold T"; rescaling moves T by the same factor, so the same peptides fall
+on the same side of every split. Random forest and LightGBM are both
+tree-based, so neither of our models is affected.
+
+The hint is aimed at distance-based models (SVM, kNN, logreg), where it is
+worth a lot. Note the scaled SVM still only reaches 0.709, below our 0.739 —
+the hint's payoff doesn't catch up to where we already are.
+
+**Judge answer if asked:** "We tested it. +7.5 points to an SVM, exactly zero
+to a random forest, because trees split on thresholds and scaling preserves
+ordering. Our best model is a forest, so it was a no-op — but we verified
+rather than assumed."
+
+## OVERFITTING CHECK (13:40, A) — train/test gap is NOT diagnostic here
+
+Anticancer RF: train accuracy **1.0000**, held-out **0.7385**, gap 0.26.
+
+That gap looks alarming and the challenge doc's own advice ("if training
+accuracy is high and validation much lower, your model is memorising") would
+flag it. **That advice does not apply to random forests.** With
+min_samples_leaf=1 every tree grows until its leaves are pure, so train
+accuracy is 1.00 by construction for any RF, good or bad. The number carries
+no information.
+
+The correct test is whether *constraining* the model helps. It doesn't:
+leaf=1 → 0.739, leaf=2 → 0.722, leaf=3 → 0.709, leaf=5 → 0.709. Every
+simplification made held-out accuracy worse, so the complexity is justified.
+
+**Learning curve** (does more data help?): 25% → 0.685, 50% → 0.716,
+75% → 0.714, 100% → 0.729. Still rising but flattening; doubling data from
+50% to 100% buys ~1.4 points. Confirms (a) train the final model on all 964
+peptides, and (b) the limit is problem difficulty, not model choice.
