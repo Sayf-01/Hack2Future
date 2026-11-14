@@ -176,23 +176,143 @@ https://drive.google.com/drive/folders/1ERx6kq5KVYZxftFRI4TkqE01CP5Ka2eE
 
 ---
 
-## Plan
+## Task division — READ THIS BEFORE TOUCHING ANY FILE
 
-Rough split for a team of 2. Adjust freely — just update this file.
+Two AI agents on one repo break in exactly one way: both edit the same file and
+every push becomes a merge fight. So the split is by **file ownership**, not by
+task. The owner of a file is the only one who edits it.
 
-**Person A (Sayf + Claude)** — modeling
-- `src/features.py` — sequence → numbers
-- `src/train.py` — train both models, save to `models/`
-- Validation split, threshold tuning for both classifiers
+### File ownership (hard rule)
 
-**Person B (teammate + their AI)** — pipeline & safety net
-- Run `test_environment.py` first and confirm the environment works
-- `src/predict.py` — load saved models + a CSV → write submission CSV
-- Verify output matches `submission_template.csv` exactly
-- Dry-run the whole final sequence on demo data **before** 3:30
-- Submit a valid practice CSV to the form early
+| File | Owner | Nobody else edits it |
+|---|---|---|
+| `src/features.py` | **A (Sayf)** | ✋ |
+| `src/train.py` | **A (Sayf)** | ✋ |
+| `models/*.pkl` | **A (Sayf)** | ✋ |
+| `src/predict.py` | **B (partner)** | ✋ |
+| `src/validate_submission.py` | **B (partner)** | ✋ |
+| `submissions/*.csv` | **B (partner)** | ✋ |
+| `COLLAB.md` | both | append only, keep both sides on conflict |
+
+If you need a change in a file you don't own, **write it under "Requests" below**
+instead of editing it. The owner makes the change.
+
+### The contract between the two halves (frozen — do not change unilaterally)
+
+This is the interface. A builds to the left of it, B builds to the right.
+Neither side needs to read the other's code, only this:
+
+```python
+# src/features.py  — owned by A, imported by B
+def build_feature_matrix(sequences) -> pd.DataFrame
+    # takes: any iterable of raw sequence strings (uncleaned)
+    # returns: DataFrame, one row per input sequence, in the SAME ORDER
+    # handles cleaning internally; never raises on a weird sequence
+```
+
+```python
+# models/anticancer.pkl and models/hemolytic.pkl — written by A, loaded by B
+# Each is a dict saved with joblib.dump:
+{
+    "model":     <fitted sklearn estimator with .predict_proba>,
+    "columns":   [list of feature column names, in training order],
+    "threshold": <float, the tuned cutoff for calling 1 vs 0>,
+}
+```
+
+B's `predict.py` therefore always looks like this, regardless of what A does
+to the model internals:
+
+```python
+bundle = joblib.load("models/anticancer.pkl")
+X = build_feature_matrix(df["sequence"])[bundle["columns"]]   # reindex to training order
+proba = bundle["model"].predict_proba(X)[:, 1]
+pred  = (proba >= bundle["threshold"]).astype(int)
+```
+
+A can swap logistic regression for a random forest, add dipeptide features,
+retune thresholds — none of it breaks B, because the contract holds.
+
+### Why A ships a throwaway model first
+
+B cannot test `predict.py` without a `.pkl` to load. So **A's first deliverable
+is not a good model — it is a working one.** A trains the simplest baseline,
+saves both `.pkl` files in the contract format, and pushes immediately. B starts
+building against it right away. A then replaces the models with better ones; B
+never has to change a line.
+
+Unblock downstream first, optimize second.
+
+### Who does what
+
+**A (Sayf + Claude)** — modeling
+1. `features.py`, then a baseline `train.py` → push both `.pkl` files FAST (unblocks B)
+2. Then improve: better model, dipeptides + feature selection, threshold tuning
+3. Report validation numbers in the work log each time models change
+
+**B (partner + Claude Code)** — pipeline, format, and the safety net
+1. Run `python test_environment.py` **first** — confirm the environment works
+2. `src/predict.py` per the contract above → writes the submission CSV
+3. `src/validate_submission.py` — checks a CSV against `submission_template.csv`:
+   exact column names and order, probabilities in [0,1], predictions in {0,1},
+   verdict strings spelled exactly, row count matches input, sequences unchanged
+4. Run the full pipeline on `participant_datasets/demo/` end to end
+5. **Submit a practice CSV to the form early** (built from demo sequences)
+6. Time the pipeline on ~650 rows so there's no surprise at 3:30
 
 **Both, at 3:20 PM:** stop building. Freeze. Models saved, `predict.py` tested.
+
+### Git workflow
+
+Both work on `main`. With strict file ownership there is nothing to conflict on
+except `COLLAB.md`. Branches would cost more merge time than they save over
+three hours.
+
+```bash
+git pull --rebase && git push
+```
+
+Push every time something works. Don't sit on uncommitted work.
+
+### Requests (ask the file's owner instead of editing)
+
+- _(nothing yet)_
+
+---
+
+## FINDING (12:35, A) — near-duplicate leakage, and where to spend the time left
+
+**B's numbers independently reproduced.** A built a different feature set
+(charge, hydrophobic moment, AAC — no dipeptides) and got anticancer 0.743 /
+hemolytic 0.937 on a random 5-fold split. B got 0.739 / 0.937. Two unrelated
+feature sets landing on the same number means the result is real.
+
+**Leakage measured.** Clustering sequences that share a 7-mer and forcing each
+cluster to stay on one side of the split:
+
+| | random split | cluster-aware split | drop |
+|---|---|---|---|
+| anticancer | 0.743 | 0.696 | −4.7 |
+| hemolytic | 0.937 | 0.908 | −2.9 |
+
+**What to do about it: nothing.** The final 650 peptides come from the same
+source databases, so the same near-duplicate effect will help us at scoring
+time. The random-split number is the better predictor of the leaderboard.
+The cluster-split number is the honest answer if a judge asks whether the
+model generalises to genuinely new peptide families — worth knowing for the
+questioning, not worth changing the model over.
+
+**Where the remaining time should go: ANTICANCER ONLY.**
+Score = average of the two accuracies. Hemolytic at 0.937 is close to maxed;
+squeezing it further is hard and worth little. Anticancer at 0.739 is what's
+dragging the average down, and it has the most headroom. +4 points on
+anticancer = +2 points on the final metric. +4 on hemolytic is probably
+unreachable.
+
+**Noise floor:** fold-to-fold standard deviation is ±0.03 (anticancer) and
+±0.02 (hemolytic). B already clocked ±0.08 on his setup. Any "improvement"
+smaller than that is noise. Do not chase it, and do not let threshold tuning
+move on a difference that small — B already caught and reverted exactly that.
 
 ### Checklist
 
