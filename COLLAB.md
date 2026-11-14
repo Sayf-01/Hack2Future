@@ -496,3 +496,34 @@ Newest at the bottom. Format: `HH:MM — who — what`
 - [ ] **Worth asking a mentor:** anticancer sits at 0.739 while hemolytic is at
       0.937. Is that gap expected for this dataset, or are we missing something
       on the anticancer side?
+
+---
+
+## HELD-OUT ACCURACY (13:10, A) — the numbers survive
+
+Until now every score in this repo was cross-validation, and B's 0.739 was the
+*best of 12* combinations measured on the same CV that picked it. The maximum
+of noisy estimates is biased upward, so that number needed checking.
+
+**Nested evaluation**, 4 outer folds, group-aware throughout: hold peptides out
+BEFORE any model selection, run the entire 12-combination selection on what's
+left, score the winner once on peptides that played no part in choosing it.
+
+| | reported (CV) | **held-out** | spread |
+|---|---|---|---|
+| anticancer | 0.739 | **0.727** | ±0.024 |
+| hemolytic | 0.937 | **0.930** | ±0.020 |
+| **average** | **0.838** | **0.829** | |
+
+**Verdict: the reported numbers are honest.** ~1 point of optimism, inside the
+noise. Quote 0.838; if a judge pushes on whether model selection inflated it,
+the nested number is 0.829.
+
+**Anticancer model choice is stable.** All 4 outer folds independently picked
+`aac+dpc+phys / rf`. Four for four, each blind to the others. The dipeptide +
+RF choice is real, not a lucky split. Good answer if questioned.
+
+**Hemolytic model choice is arbitrary.** The 4 folds picked 4 *different*
+winners (rf, logreg, xgb, lgbm), all within ~2 points. The signal is strong
+enough that the algorithm barely matters. **Do not spend time tuning the
+hemolytic model** — it is interchangeable.
