@@ -723,3 +723,41 @@ our fold-to-fold noise.
 **"The scaling hint?"** Tested. +7.5 points to an SVM, exactly zero to a random
 forest (identical to six decimals) because trees split on thresholds and
 scaling preserves ordering. Scaled SVM still only reached 0.709 vs our 0.739.
+
+---
+
+## FINAL: TEN ATTEMPTS TO BEAT THE MODEL, ALL NEGATIVE (15:00, A)
+
+Complete record. **The model is frozen. Nothing below changed it.**
+
+| # | attempt | result |
+|---|---|---|
+| 1 | 12 feature/algorithm combos (B) | rf+aac+dpc+phys won |
+| 2 | ESM-2 embeddings (B) | 0.722 < 0.739 |
+| 3 | Ensembling, 11 combos | all < rf alone (best 0.724) |
+| 4 | RF hyperparameters, 10 variants | current settings won |
+| 5 | Feature scaling | exactly 0.000 change (trees) |
+| 6 | Threshold tuning | 0.5 optimal; tuning collapses a class |
+| 7 | Independent feature set (A) | ~0.74, same ballpark |
+| 8 | **Feature selection** (organizers' hint) | **worse, monotonically** (k=300 → 0.728, k=50 → 0.702) |
+| 9 | Terminal N/C-region features | 0.7334 < 0.7386 |
+| 10 | Shuffled-dipeptide control | real 0.739 vs shuffled 0.711 — order carries real signal |
+
+**Both organizer hints are no-ops for our models, for the same reason.**
+Scaling: trees split on thresholds, which rescale with the data. Feature
+selection: a random forest already selects features at every split, so cutting
+them beforehand only removes information. Both hints target distance-based
+models (SVM/kNN/logreg).
+
+**What this collectively means:** ten unrelated routes converging on ~0.74 makes
+that a property of the dataset, not of our choices. The learning curve agrees
+(still rising but flattening; 50% → 100% of the data buys 1.4 points).
+
+**What would genuinely be better, given more time or data:** a properly
+fine-tuned protein language model (needs far more than 964 examples, and is
+borderline on the no-external-predictor rule); more labelled peptides; or
+splitting the anticancer label by cell line if the heterogeneity hypothesis is
+right (needs assay metadata we don't have).
+
+**Expected final score: 82.9% ±2** (nested held-out). Anywhere from ~80% to
+~86% is consistent with chance on a 650-peptide test set.
