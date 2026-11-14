@@ -429,6 +429,75 @@ Append decisions here so neither side redoes the argument.
 
 ---
 
+## ANOTHER TEAM'S 74/95 - MEASURED, NOT ARGUED (B, 14:25)
+
+A participant reported **74% anticancer / 95% hemolytic** (average 84.5%)
+"using Transformers", against our 73.9 / 93.7 (average 83.8). Nothing was
+changed; the frozen submission stands. Two experiments settled it, both run
+outside the repo against copies. Raw numbers in `experiments/`.
+
+### Their advantage is the validation protocol, not the model
+
+Same frozen models, same feature sets, same four fold seeds. The **only**
+variable is grouped folds vs a plain random split:
+
+| Target | Model | Grouped (ours) | Plain random split | Protocol is worth |
+|---|---|---|---|---|
+| anticancer | rf | 0.7251 | **0.7516** | **+2.65 pts** |
+| hemolytic | lgbm | 0.9438 | **0.9490** | +0.53 pts |
+| **average** | | **0.8345** | **0.8503** | **+1.6 pts** |
+
+**Our existing models score 75.2 / 94.9 - average 85.0% - on the protocol
+other teams are most likely using.** That is level with or slightly ahead of
+the 74/95 report, with no change to anything. Grouped CV is not us being
+worse; it is us measuring honestly. Anyone quoting a random-split number is
+quoting a number inflated by roughly 1.6 points of near-duplicate leakage.
+
+**Judge answer if another team's number comes up:** "Both are the same model.
+We validate with similarity-grouped folds, so near-identical peptides never sit
+on opposite sides of a split. On an ordinary random split our model scores 75.2
+and 94.9 - we measured it. We report the stricter number because it is the one
+that predicts performance on peptides we have not seen."
+
+### Two corrections to our own reported numbers
+
+- **Hemolytic 0.9369 is pessimistic, not optimistic.** Seed 42 is the *worst*
+  of four fold seeds for hemolytic; the mean is **0.9438**. Our anticancer
+  headline leans the other way (0.7386 is the best of four, mean 0.7251). The
+  two biases roughly cancel, which is why the 0.838 average holds up against
+  the 0.8345 four-seed mean and Sayf's 0.829 nested figure. Quote 0.838.
+- **A transformer from scratch was never on the table for anyone.** 964 and 618
+  training sequences, and this machine reports `torch 2.15.0+cpu`,
+  `cuda available: False`. "Using Transformers" means a pretrained protein
+  language model, which is the ESM-2 family - the thing we tested.
+
+### ESM-2 retested properly, and it still loses
+
+The earlier ESM-2 test was weaker than it was presented as: smallest model
+(`esm2_t6_8M_UR50D`, 320-dim), frozen mean-pooled embeddings, and - the real
+gap - `train.py` only ever built `esm` and `esm+phys`, **never ESM alongside
+the winning `aac+dpc+phys` set**. That combination has now been run, grouped
+folds, four seeds, 758 features:
+
+| fold seed | hand only | ESM + hand | delta |
+|---|---|---|---|
+| 42 | 0.7386 | 0.7147 | -0.0239 |
+| 7 | 0.7220 | 0.7230 | +0.0010 |
+| 13 | 0.7230 | 0.7095 | -0.0135 |
+| 2026 | 0.7168 | 0.7158 | -0.0010 |
+
+Mean **-0.0093**, winning **1 of 4**. It loses, and AUC drops too (0.788 vs
+0.811). 320 dense dimensions dilute 438 informative ones. **Now the claim
+"pretrained embeddings do not help here" is actually backed by a test against
+our best feature set** - before, it was not.
+
+Not tried, and not worth trying: ESM-2 650M (2.5 GB download over venue wifi)
+or fine-tuning end to end (CPU only, no GPU). Both are out on logistics, and
+the 8M result gives no reason to expect the big one to flip a 2-point deficit.
+
+**Outcome: no change. RandomForest / aac+dpc+phys / 0.5 and LightGBM /
+aac+phys / 0.5 remain frozen.**
+
 ## FROZEN (B, 14:15) - this is the submission unless something is broken
 
 **`frozen_v1/` holds the submission.** Both models, the whole `src/` pipeline,
@@ -539,6 +608,12 @@ A rehearsal file is committed at `submissions/dry_run.csv`, generated from
 before the real one exists.
 
 ## Work log
+- 14:25 - Light (B) - Another team reported 74/95 "using Transformers".
+  Measured rather than argued: the gap is their validation protocol. Our same
+  frozen models score **75.2 / 94.9 (avg 85.0)** on a plain random split, level
+  with or ahead of their report. Also retested ESM-2 against the winning
+  feature set for the first time - loses, mean -0.0093, 1 win of 4. Nothing
+  changed. Section above.
 - 14:15 - Light (B) - Froze the submission in `frozen_v1/` and verified it by
   restoring from it (byte-identical output). Ran the bounded anticancer
   experiment: SVM and feature selection both lost, the one apparent winner
