@@ -1,0 +1,7 @@
+=== train: 618 sequences ===
+length: min 4  median 18  mean 20.5  max 98
+class balance: 0: 309 (50.0%), 1: 309 (50.0%)
+  label 0: median length 18, mean 21.0
+  label 1: median length 18, mean 20.1
+exact duplicate sequences: none
+near-duplicate clusters in train (3-mer Jaccard >= 0.6): 519 clusters for 618 sequences, largest 16

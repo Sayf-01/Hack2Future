@@ -429,6 +429,80 @@ Append decisions here so neither side redoes the argument.
 
 ---
 
+## FROZEN (B, 14:15) - this is the submission unless something is broken
+
+**`frozen_v1/` holds the submission.** Both models, the whole `src/` pipeline,
+the template, requirements, a reference output, and `MANIFEST.sha256` over all
+31 files. It was verified by *restoring from it*: a prediction run driven
+entirely out of `frozen_v1/` produced a file **byte-identical** to the committed
+`submissions/dry_run.csv`. A backup nobody has restored from is not a backup.
+
+If anything goes wrong with `models/` or `src/` at 15:30, run this instead and
+you lose nothing:
+
+```bash
+python frozen_v1/src/predict.py --input final_test_sequences.csv \
+  --output submissions/final.csv \
+  --anticancer frozen_v1/models/anticancer --hemolytic frozen_v1/models/hemolytic \
+  --template submission_template.csv
+```
+
+**Verified end to end on 650 rows (twice, live path and frozen path):**
+
+| Check | Result |
+|---|---|
+| Wall clock, 650 rows | **4.0 s** (we have 30 minutes) |
+| Header vs `submission_template.csv` | matches character for character |
+| Rows in -> out | 650 -> 650 |
+| Row order + sequence strings | identical to input, position by position |
+| Probabilities | all inside 0-1 |
+| Predictions | strictly 0/1 |
+| Verdicts | all four strings, nothing outside the set |
+| Hard-coded mock path | none; `--input` is required and has no default |
+| Fake demo sequences in training | **0** |
+| Retraining at predict time | none - there is no training code path in `predict.py` |
+
+## Anticancer improvement attempt (B, 14:15) - RF survives, nothing beat it
+
+One bounded pass, everything on the **same similarity clusters and the same
+`StratifiedGroupKFold(5, shuffle=True, random_state=42)` folds** as the saved
+model. Proof the comparison is apples-to-apples: plain RF re-scored
+**0.7386** on those folds, matching the saved model to four decimals. Every
+scaler and feature selector sat **inside** the pipeline, so each was fit on
+training folds only - no selection leakage.
+
+Full table in `experiments/exp_anticancer_results.csv`. Headlines:
+
+| Candidate | Accuracy | Sens | Spec | AUC | MCC |
+|---|---|---|---|---|---|
+| rf-importance select + rf | 0.7438 | 0.674 | 0.813 | 0.810 | 0.492 |
+| **rf baseline (saved)** | **0.7386** | 0.662 | 0.815 | 0.811 | 0.483 |
+| kbest200 + rf | 0.7230 | 0.654 | 0.793 | 0.798 | 0.450 |
+| svc_rbf C=1 (best SVM) | 0.7085 | 0.695 | 0.722 | 0.781 | 0.417 |
+| svc_linear C=1 (worst) | 0.6131 | 0.624 | 0.602 | 0.655 | 0.226 |
+
+- **SVM lost, clearly and at every setting.** Best RBF was 0.7085, 3 points
+  below RF; linear was catastrophic at 0.6131. On 438 sparse compositional
+  features, distance-based margins are the wrong tool. It is off the table.
+- **Filter feature selection lost too.** `SelectKBest` at k = 50/100/200 all
+  came in below the full 438 columns. The dipeptide columns are individually
+  weak and jointly useful, which is exactly what a tree ensemble exploits and
+  a univariate filter throws away.
+- **The one candidate that nudged ahead did not survive re-testing.** RF
+  importance-based selection gained +0.0052 on seed 42, so it was re-run
+  across four fold seeds: deltas **+0.0052, -0.0010, +0.0062, -0.0010**, mean
+  **+0.0023**, winning **2 of 4**. That is noise, not an improvement.
+
+**Honest caveat worth knowing before anyone quotes 0.739.** That same seed
+sweep shows plain RF scoring 0.7386 / 0.7220 / 0.7230 / 0.7168 across four fold
+splits - mean **0.7251**, spread 0.022. Our headline 0.739 is the luckiest of
+the four. The realistic expectation on the final test set is **somewhere around
+0.72-0.74 for anticancer**, not 0.739 exactly. Nothing to fix; just do not be
+surprised, and do not quote 0.739 to a judge as if it were precise.
+
+**Decision: freeze.** RandomForest on aac+dpc+phys, threshold 0.5, unchanged.
+Hemolytic was not touched - no bug was found in it, so there was no reason to.
+
 ## Current scores (B, 12:30 - grouped CV on the real training data)
 
 | Model | Features | Algorithm | **Accuracy** | AUC | MCC | Sens | Spec |
@@ -465,6 +539,20 @@ A rehearsal file is committed at `submissions/dry_run.csv`, generated from
 before the real one exists.
 
 ## Work log
+- 14:15 - Light (B) - Froze the submission in `frozen_v1/` and verified it by
+  restoring from it (byte-identical output). Ran the bounded anticancer
+  experiment: SVM and feature selection both lost, the one apparent winner
+  failed a fold-seed re-test, so RF + 0.5 stays. Details in the two sections
+  above and in `experiments/`.
+- 14:00 - Light (B) - Fixed `requirements.txt`: it was missing **`peptides`**
+  (used by `features.py`) and **`scipy`** (used by `leak.py`), so a fresh clone
+  would have died on the first run. Both added.
+- 14:00 - Light (B) - **Verdict-string ambiguity in the challenge doc, resolved
+  with the organizers.** The cross table on p. 2 writes `Works, but toxic.` and
+  `Toxic and does not work.`, while the submission-format section on p. 6 writes
+  `Works but toxic` and `Toxic and doesn't work`. Organizers confirmed: **follow
+  the p. 6 wording, and they will accept both spellings.** We use p. 6. No code
+  change needed - but if you hand-build a CSV, use the p. 6 strings.
 
 Newest at the bottom. Format: `HH:MM — who — what`
 

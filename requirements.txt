@@ -5,3 +5,5 @@ lightgbm
 xgboost
 joblib
 biopython
+peptides
+scipy
