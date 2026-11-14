@@ -429,6 +429,60 @@ Append decisions here so neither side redoes the argument.
 
 ---
 
+## SUBMITTED (B, 15:40) - `submissions/final.csv`, 649 rows
+
+**The final test set was released at 15:30 and our submission is in the form.**
+No retraining, no threshold change, no feature change - the frozen models were
+loaded and scored, exactly as rehearsed.
+
+| | Model | Features | Threshold |
+|---|---|---|---|
+| anticancer | RandomForestClassifier | aac+dpc+phys (438) | 0.5 |
+| hemolytic | LGBMClassifier | aac+phys (38) | 0.5 |
+
+Run from `frozen_v1/`, 12.9 s for 649 sequences. Verified **two independent
+ways**: the frozen pipeline and the live `src/` pipeline produced byte-identical
+files, and the output was re-checked against the raw input by a separate script
+rather than trusting `predict.py`'s own validator. Nine checks, all passing -
+649 rows, columns matching the template, row order and sequence strings
+identical position by position, probabilities in [0,1], predictions strictly
+0/1, all four verdict strings, and every verdict consistent with its own two
+predictions.
+
+| Verdict | Count | Share |
+|---|---|---|
+| Selective | 62 | 9.6% |
+| Works but toxic | 202 | 31.1% |
+| Toxic and doesn't work | 211 | 32.5% |
+| Does nothing | 174 | 26.8% |
+
+The final set is much more active than the synthetic mock (40.7% anticancer and
+63.6% hemolytic predicted positive, vs 25% and 12.6%) - the organizers curated
+real actives, and the mock's base rates meant nothing because its sequences
+were noise.
+
+**Sanity check, not a score.** There are no labels in the final file, so nobody
+on our side can compute an accuracy. Working backwards from our known
+sensitivity/specificity and the rate at which each model predicted positive
+gives an implied prevalence of 46.6% anticancer / 66.9% hemolytic and an
+implied average accuracy of **0.838** - matching our CV estimate. That only
+confirms the pipeline behaved correctly on this data; a silently broken feature
+matrix would have shown up here as a nonsensical prevalence. Realistic
+expectation remains **0.83-0.85**.
+
+**No challenger experiment was run in the final window, deliberately.** Fifteen
+bounded attempts had already failed across both machines (B: SVM at every
+setting, SelectKBest at k=50/100/200, RF-importance selection, ESM+hand, the
+protocol comparison; A: ensembling all 11 combinations, RF hyperparameters,
+ExtraTrees, threshold sweeps, a second independent feature set, learning
+curves, the scaling hint). A sixteenth attempt inside 20 minutes could only
+clear the "consistent across splits" bar by being lucky, and a lucky result is
+what that bar exists to reject. The remaining risk was entirely operational.
+
+The organizers' `final_test_sequences.csv` is deliberately **not** committed -
+it is their data to distribute, and the repo does not need it. It is kept at
+`C:/Users/danya/Projects/h2f_final/` on B's machine.
+
 ## ANOTHER TEAM'S 74/95 - MEASURED, NOT ARGUED (B, 14:25)
 
 A participant reported **74% anticancer / 95% hemolytic** (average 84.5%)
@@ -608,6 +662,8 @@ A rehearsal file is committed at `submissions/dry_run.csv`, generated from
 before the real one exists.
 
 ## Work log
+- 15:40 - Light (B) - **Submitted.** `submissions/final.csv`, 649 rows, from
+  the frozen models with nothing changed. Verified twice over; section above.
 - 14:25 - Light (B) - Another team reported 74/95 "using Transformers".
   Measured rather than argued: the gap is their validation protocol. Our same
   frozen models score **75.2 / 94.9 (avg 85.0)** on a plain random split, level
