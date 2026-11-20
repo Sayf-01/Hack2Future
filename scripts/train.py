@@ -1,10 +1,19 @@
-"""One command, whole pipeline.
+"""Training: one labelled dataset in, one saved model bundle out.
 
-    python run.py --train data/train.csv [--test data/test.csv] [--quick] [--no-esm]
+    python scripts/train.py --train participant_datasets/initial/anticancer_train.csv \
+                            --target anticancer --out models/anticancer
 
-Outputs land in out/: data_report.txt, cv_results.csv, predictions.csv,
-bio_boxplots.png, bio_class_comparison.csv, shap_summary.png,
-shap_importance.csv, roc.png, umap_esm.png, umap3d_esm.csv, best_model.joblib
+Builds several feature sets, compares four algorithms on similarity-grouped
+cross-validation, picks the winner on accuracy, refits it on all the data and
+saves it with the exact column list it was trained on.
+
+Writes into ``--out``: best_model.joblib, cv_results.csv, data_report.txt,
+bio_class_comparison.csv, shap_importance.csv, and the plots bio_boxplots.png,
+shap_summary.png and roc.png (plus umap_esm.png when embeddings are enabled).
+
+Protein language model embeddings are opt-in through ``--esm``. Both shipped
+models were trained without them, because they lost on merit and they pull in
+torch and transformers. See docs/methodology.md.
 """
 import argparse
 import sys
@@ -15,10 +24,10 @@ import joblib
 import numpy as np
 import pandas as pd
 
-ROOT = Path(__file__).resolve().parent
-sys.path.insert(0, str(ROOT))
-from pep import cv, explain, features, leak  # noqa: E402
-from pep.load import load, report  # noqa: E402
+ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT / "src"))
+from peptide_classifier import cv, explain, features, leak  # noqa: E402
+from peptide_classifier.load import load, report  # noqa: E402
 
 T0 = time.time()
 
@@ -34,7 +43,10 @@ def main():
     ap.add_argument("--seq-col")
     ap.add_argument("--label-col")
     ap.add_argument("--id-col")
-    ap.add_argument("--no-esm", action="store_true")
+    # Opt-in, not opt-out: the embeddings lost on merit and pull in torch and
+    # transformers, so a default install does not need them.
+    ap.add_argument("--esm", action="store_true",
+                    help="also try protein language model embeddings (needs torch + transformers)")
     ap.add_argument("--quick", action="store_true", help="2 models, no dipeptides: first score in ~a minute")
     ap.add_argument("--sim-threshold", type=float, default=0.6, help="3-mer Jaccard for near-duplicate groups")
     ap.add_argument("--no-groups", action="store_true", help="plain stratified CV (to show the leakage gap)")
@@ -86,7 +98,7 @@ def main():
         sets["aac+dpc+phys"] = pd.concat([aac, dpc, phys], axis=1)
     log(f"hand-made features built: {', '.join(f'{k} {v.shape[1]}' for k, v in sets.items())}")
     E = None
-    if not a.no_esm:
+    if a.esm:
         from pep.esm import embed
         E = embed(all_seqs)
         Edf = pd.DataFrame(E, columns=[f"esm_{i}" for i in range(E.shape[1])])

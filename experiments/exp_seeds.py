@@ -8,11 +8,11 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-REPO = Path("C:/Users/danya/Projects/Hack2Future")
+REPO = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO / "src"))
 
-from pep import cv, features, leak          # noqa: E402
-from pep.load import load                   # noqa: E402
+from peptide_classifier import cv, features, leak          # noqa: E402
+from peptide_classifier.load import load                   # noqa: E402
 
 from sklearn.base import clone              # noqa: E402
 from sklearn.ensemble import RandomForestClassifier  # noqa: E402

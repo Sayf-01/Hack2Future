@@ -1,7 +1,18 @@
 """
-train.py — train the two classifiers and save them for predict.py.
+An independent second implementation, written by Sayf Al Safadi.
 
-OWNED BY: A (Sayf). Run from the repo root:  python src/train.py
+This is not the shipped pipeline — see ``scripts/train.py`` for that. It is kept
+because it was built separately, from a different feature set (charge density,
+hydrophobic moment, aromaticity and AAC, with no dipeptides), and landed on
+anticancer accuracy in the same ~0.74 range. Two unrelated feature sets reaching
+the same number is the strongest evidence in this project that the result is a
+property of the dataset rather than of one person's choices.
+
+Note that it validates on a plain stratified split rather than similarity-grouped
+folds, so its numbers are not directly comparable to the headline figures. See
+docs/methodology.md.
+
+Run it from the project root:  python experiments/sayf_baseline/train.py
 
 What it does, in order:
   1. load one training file (anticancer or hemolytic — they are SEPARATE datasets)
@@ -34,7 +45,8 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from features import build_feature_matrix
 
 RANDOM_STATE = 42          # fixed so results are reproducible run to run
-REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+# experiments/sayf_baseline/train.py -> three levels up is the project root
+REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 
 def candidate_models():
@@ -144,10 +156,12 @@ def train_one(name: str):
             "n_train": int(len(df)),
         },
     }
-    out = os.path.join(REPO, "models", f"{name}.pkl")
+    # Saved beside this script, never into models/, so it cannot overwrite the
+    # shipped bundles in models/anticancer/ and models/hemolytic/.
+    out = os.path.join(os.path.dirname(os.path.abspath(__file__)), f"{name}.pkl")
     os.makedirs(os.path.dirname(out), exist_ok=True)
     joblib.dump(bundle, out)
-    print(f"  saved -> models/{name}.pkl")
+    print(f"  saved -> {out}")
     return bundle["meta"]
 
 
