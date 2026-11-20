@@ -1,20 +1,22 @@
-"""Final-round script: saved models + the test sequences -> submission CSV.
+"""Inference: saved models + a file of peptide sequences -> predictions CSV.
 
-    python predict.py --input final_test_sequences.csv --output submissions/final.csv
+    python scripts/predict.py --input examples/sample_peptides.csv \
+                              --output predictions.csv
 
-NOTHING is trained here. It loads the models saved by run.py, rebuilds exactly
-the feature columns each model was trained on, and writes the submission.
+Nothing is trained here. This script loads the models saved by
+``scripts/train.py``, rebuilds exactly the feature columns each model was
+trained on, and writes one output row per input sequence.
 
-Submission columns, in this order (the judging script is strict):
+Output columns, in this order:
 
     sequence, anticancer_probability, anticancer_prediction,
     hemolytic_probability, hemolytic_prediction, verdict
 
-Two details that are easy to get wrong and fatal if you do:
-  * the key is `sequence`, not `id` — the test file has both, the submission
-    carries only the sequence
-  * the sequence is written out EXACTLY as the organizers wrote it, not
-    upper-cased or stripped, so it still matches their file on join
+Two details that are easy to get wrong:
+  * the key is ``sequence``, not ``id`` — the input file may carry both, the
+    output carries only the sequence
+  * the sequence is written out exactly as it appeared in the input, not
+    upper-cased or stripped, so the output still joins against the input
 """
 import argparse
 import sys
@@ -25,10 +27,10 @@ import joblib
 import numpy as np
 import pandas as pd
 
-ROOT = Path(__file__).resolve().parent
-sys.path.insert(0, str(ROOT))
-from pep import features  # noqa: E402
-from pep.load import load  # noqa: E402
+ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(ROOT / "src"))
+from peptide_classifier import features  # noqa: E402
+from peptide_classifier.load import load  # noqa: E402
 
 T0 = time.time()
 
@@ -82,17 +84,31 @@ def score(model_dir, seqs, use_tuned=True):
 
 
 def main():
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--input", required=True, help="final_test_sequences.csv")
-    ap.add_argument("--output", default="submissions/final.csv")
-    ap.add_argument("--anticancer", default="models/anticancer", help="dir holding best_model.joblib")
-    ap.add_argument("--hemolytic", default="models/hemolytic")
-    ap.add_argument("--seq-col")
-    ap.add_argument("--half", action="store_true", help="use 0.5 instead of the tuned thresholds")
-    ap.add_argument("--template", help="submission_template.csv, to verify the format against")
+    ap = argparse.ArgumentParser(
+        description="Score peptide sequences with the saved anticancer and hemolytic models.")
+    ap.add_argument("--input", required=True,
+                    help="CSV/TSV/Excel/FASTA holding the peptide sequences to score")
+    ap.add_argument("--output", default=str(ROOT / "predictions.csv"),
+                    help="where to write the predictions CSV")
+    ap.add_argument("--anticancer", default=str(ROOT / "models" / "anticancer"),
+                    help="directory holding the anticancer best_model.joblib")
+    ap.add_argument("--hemolytic", default=str(ROOT / "models" / "hemolytic"),
+                    help="directory holding the hemolytic best_model.joblib")
+    ap.add_argument("--seq-col", help="name of the sequence column (auto-detected if omitted)")
+    ap.add_argument("--half", action="store_true",
+                    help="force a 0.5 cutoff instead of each model's saved threshold")
+    ap.add_argument("--template", help="a CSV whose header the output must match, e.g. "
+                                       "examples/output_schema.csv")
     a = ap.parse_args()
 
-    df, _, info = load(a.input, a.seq_col)
+    if not Path(a.input).exists():
+        sys.exit(f"Input file not found: {a.input}")
+    try:
+        df, _, info = load(a.input, a.seq_col)
+    except ValueError as e:
+        sys.exit(f"Could not read sequences from {a.input}: {e}")
+    if len(df) == 0:
+        sys.exit(f"No sequences found in {a.input}")
     log(f"{len(df)} sequences from column '{info['seq_col']}' of {a.input}")
     seqs = df["sequence"].tolist()
 
@@ -102,7 +118,7 @@ def main():
     ch = (ph >= th).astype(int)
 
     sub = pd.DataFrame({
-        "sequence": df["sequence_raw"],          # exactly as the organizers wrote it
+        "sequence": df["sequence_raw"],          # exactly as it appeared in the input
         "anticancer_probability": np.round(pa, 6),
         "anticancer_prediction": ca,
         "hemolytic_probability": np.round(ph, 6),
@@ -119,8 +135,8 @@ def main():
     for v in VERDICT.values():
         log(f"  {v:24s} {counts.get(v, 0):5d}  ({counts.get(v, 0) / len(sub):6.1%})")
 
-    # FATAL = the judging script would reject or misread the file.
-    # WARNING = worth a look, but never a reason to block a submission at 15:30.
+    # A problem means the file is malformed and the script exits non-zero.
+    # A warning is worth a look but never blocks the write.
     problems, warnings = [], []
     if list(sub.columns) != COLUMNS:
         problems.append(f"column order is {list(sub.columns)}")
@@ -139,7 +155,7 @@ def main():
     if not sub["verdict"].isin(list(VERDICT.values())).all():
         problems.append("a verdict string is not one of the four allowed values")
     if counts.get("Selective", 0) == len(sub):
-        problems.append("every row is Selective — the shortcut the organizers call out")
+        problems.append("every row is Selective — both models have collapsed to one class")
 
     d = int(sub["sequence"].duplicated().sum())
     if d:
@@ -157,11 +173,11 @@ def main():
     for w in warnings:
         print(f"  warning: {w}")
     if problems:
-        print("FATAL — do not submit this file:")
+        print("FAILED — the output is malformed:")
         for p in problems:
             print(f"  - {p}")
         sys.exit(1)
-    log("format checks passed — safe to submit")
+    log("format checks passed")
     print(sub.head(5).to_string(index=False))
 
 

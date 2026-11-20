@@ -17,11 +17,11 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
-REPO = Path("C:/Users/danya/Projects/Hack2Future")
+REPO = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPO / "src"))
 
-from pep import cv, features, leak          # noqa: E402
-from pep.load import load                   # noqa: E402
+from peptide_classifier import cv, features, leak          # noqa: E402
+from peptide_classifier.load import load                   # noqa: E402
 
 from sklearn.base import clone              # noqa: E402
 from sklearn.model_selection import StratifiedGroupKFold, StratifiedKFold  # noqa: E402
@@ -100,7 +100,7 @@ print("(b) ESM-2 (8M, cached) + aac+dpc+phys  vs  aac+dpc+phys  - grouped, 4 see
 print("=" * 78)
 
 seqs, Xh, y, groups = data["anticancer"]
-from pep.esm import embed  # noqa: E402
+from peptide_classifier.esm import embed  # noqa: E402
 E = embed(seqs)
 log(f"ESM embeddings {E.shape}")
 Xe = np.hstack([E, Xh]).astype(np.float32)

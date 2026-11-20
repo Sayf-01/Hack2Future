@@ -1,13 +1,14 @@
 """
-features.py — turn a peptide sequence (a string) into numbers a model can use.
+Turn a peptide sequence (a string) into numbers a model can use.
 
-OWNED BY: A (Sayf). B imports build_feature_matrix() and nothing else.
+Written by Sayf Al Safadi as an independent second feature set, separate from
+``src/peptide_classifier/features.py``. 32 features: charge, greasiness, shape
+and amino acid composition, with no dipeptides.
 
 Design rule for this file: every feature here must be explainable in one
-sentence to a judge. The organizers question winners about their models, so
-there is deliberately nothing clever in here.
+sentence, so there is deliberately nothing clever in it.
 
-Why these features?  The biology (from the challenge doc):
+Why these features?  The biology:
 cancer cell membranes carry MORE NEGATIVE charge than healthy cells, so
 POSITIVELY charged peptides get pulled in and punch holes. So the features
 that should matter most are charge, size, and how the peptide arranges its
