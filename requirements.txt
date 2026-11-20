@@ -1,9 +1,21 @@
-pandas
-numpy
-scikit-learn
-lightgbm
-xgboost
-joblib
-biopython
-peptides
-scipy
+# Inference: everything scripts/predict.py needs to load the saved models
+# and score new sequences.
+pandas>=2.0,<4
+numpy>=1.24,<3
+scikit-learn>=1.3,<2        # unpickles the anticancer RandomForest
+lightgbm>=4.0,<5            # unpickles the hemolytic LGBMClassifier
+joblib>=1.3,<2
+peptides>=0.3,<1            # physicochemical descriptors
+
+# Training: additionally needed by scripts/train.py.
+scipy>=1.10,<2              # sparse k-mer similarity in leak.py
+xgboost>=2.0,<4             # one of the four candidate algorithms
+matplotlib>=3.7,<4          # ROC, class-comparison and SHAP plots
+shap>=0.44,<1               # feature attributions
+
+# Optional: protein language model embeddings, enabled with
+# `scripts/train.py --esm`. Not used by the shipped models.
+# See docs/methodology.md.
+# torch>=2.0
+# transformers>=4.30
+# umap-learn>=0.5
